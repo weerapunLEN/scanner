@@ -67,6 +67,11 @@ body{ font-family:'IBM Plex Sans Thai',sans-serif; background:var(--bg); color:v
 .man-hint{ font-size:11px; color:var(--mut); text-align:center }
 
 #cam-input{ display:none }
+@keyframes scanline{
+  0%  { top:15% }
+  50% { top:80% }
+  100%{ top:15% }
+}
 
 /* ── LAST SCAN ── */
 .lsb{ background:var(--sur); border:1.5px solid var(--bdr); border-radius:12px; padding:14px; display:flex; align-items:center; gap:12px; min-height:66px; transition:border-color .25s,background .25s }
@@ -196,9 +201,29 @@ tr:last-child td{ border-bottom:none }
       <div class="man-hint">Enter = เพิ่มอย่างเดียว &nbsp;·&nbsp; + = เพิ่มแล้วเปิดกล้องต่อ</div>
     </div>
 
-    <!-- hidden file input — capture camera photo -->
+    <!-- Live camera stream — works on iOS Safari + Android Chrome via HTTPS -->
+    <div id="video-wrap" style="display:none;flex-direction:column;gap:8px">
+      <div style="position:relative;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:4/3">
+        <video id="cam-video" autoplay playsinline muted
+               style="width:100%;height:100%;object-fit:cover;display:block"></video>
+        <!-- scan line animation -->
+        <div style="position:absolute;left:10%;right:10%;height:2px;background:rgba(56,189,248,.8);
+                    box-shadow:0 0 8px #38bdf8;animation:scanline 1.8s ease-in-out infinite"></div>
+        <!-- corner guides -->
+        <div style="position:absolute;inset:0;pointer-events:none">
+          <div style="position:absolute;top:15%;left:10%;width:32px;height:32px;border-top:3px solid #38bdf8;border-left:3px solid #38bdf8;border-radius:4px 0 0 0"></div>
+          <div style="position:absolute;top:15%;right:10%;width:32px;height:32px;border-top:3px solid #38bdf8;border-right:3px solid #38bdf8;border-radius:0 4px 0 0"></div>
+          <div style="position:absolute;bottom:15%;left:10%;width:32px;height:32px;border-bottom:3px solid #38bdf8;border-left:3px solid #38bdf8;border-radius:0 0 0 4px"></div>
+          <div style="position:absolute;bottom:15%;right:10%;width:32px;height:32px;border-bottom:3px solid #38bdf8;border-right:3px solid #38bdf8;border-radius:0 0 4px 0"></div>
+        </div>
+      </div>
+      <button onclick="stopCam()" style="background:var(--red);color:#fff;font-family:'IBM Plex Sans Thai',sans-serif;font-weight:700;font-size:14px;padding:11px;border-radius:10px;border:none;cursor:pointer">
+        ✕ ปิดกล้อง
+      </button>
+    </div>
+    <!-- fallback for browsers without getUserMedia -->
     <input type="file" id="cam-input" accept="image/*" capture="environment"
-           onchange="onPhoto(this)"/>
+           onchange="onPhoto(this)" style="display:none"/>
 
     <!-- last scan result -->
     <div class="lsb" id="lsb">
@@ -313,69 +338,172 @@ function startSession(){
 }
 
 /* ══════════════════════════════════════════════
-   CAMERA  — ถ่ายรูป → BarcodeDetector
-   ทำงานจาก file:// ได้  (ไม่ต้องการ HTTPS)
-   รองรับ: Android Chrome 83+
+   CAMERA — Live stream via getUserMedia
+   HTTPS (GitHub Pages): getUserMedia + BarcodeDetector
+   รองรับ: Android Chrome 83+, iOS Safari 17.4+
+   Fallback: file input (photo) สำหรับ browser เก่า
 ══════════════════════════════════════════════ */
+var camStream   = null;
+var scanTimer   = null;
+var bdFormats   = null;   /* cached supported formats */
+
 function openCam(){
-  document.getElementById('cam-input').value = '';
-  document.getElementById('cam-input').click();
-}
+  if(camStream){ stopCam(); return; }
 
-function onPhoto(input){
-  if(!input.files || !input.files[0]) return;
-
-  if(!('BarcodeDetector' in window)){
-    toast('Browser ไม่รองรับ BarcodeDetector — กรุณาพิมพ์เอง','err');
+  /* ลอง getUserMedia ก่อนเสมอ ไม่ว่าจะมี BarcodeDetector หรือไม่ */
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    /* browser ไม่รองรับ getUserMedia เลย → fallback ถ่ายรูป */
+    toast('Browser ไม่รองรับ Live Camera — ใช้โหมดถ่ายรูปแทน','dup');
+    document.getElementById('cam-input').value = '';
+    document.getElementById('cam-input').click();
     return;
   }
 
+  var constraints = {
+    video: { facingMode: {ideal:'environment'}, width:{ideal:1280}, height:{ideal:720} },
+    audio: false
+  };
+
+  navigator.mediaDevices.getUserMedia(constraints).then(function(stream){
+    camStream = stream;
+    var video = document.getElementById('cam-video');
+    var wrap  = document.getElementById('video-wrap');
+    video.srcObject = stream;
+    wrap.style.display = 'flex';
+    document.getElementById('btn-scan-lbl').textContent = 'ปิดกล้อง';
+    /* ตรวจว่ามี BarcodeDetector ไหม */
+    if('BarcodeDetector' in window){
+      startScanLoop(video);
+    } else {
+      /* มีกล้องแต่ไม่มี BarcodeDetector → แสดงวิดีโอให้ดู แล้วให้กดปุ่ม capture */
+      toast('กดปุ่ม 📷 เพื่อ capture barcode','dup');
+      showCaptureBtn(video);
+    }
+  }).catch(function(e){
+    var msg = e.name === 'NotAllowedError'
+      ? 'กรุณาอนุญาตการใช้กล้องในการตั้งค่า Browser'
+      : 'เปิดกล้องไม่ได้: '+e.message;
+    toast(msg,'err');
+    /* fallback ถ่ายรูป */
+    setTimeout(function(){
+      document.getElementById('cam-input').value = '';
+      document.getElementById('cam-input').click();
+    }, 1000);
+  });
+}
+
+/* สำหรับ browser ที่มี getUserMedia แต่ไม่มี BarcodeDetector
+   แสดงปุ่ม capture ให้กดเพื่อถ่ายภาพ frame แล้วส่งให้ file input */
+function showCaptureBtn(video){
+  var wrap = document.getElementById('video-wrap');
+  var btn  = document.createElement('button');
+  btn.id   = 'cap-btn';
+  btn.style.cssText = 'background:var(--sky);color:#0f172a;font-family:\'IBM Plex Sans Thai\',sans-serif;font-weight:700;font-size:16px;padding:14px;border-radius:12px;border:none;cursor:pointer;width:100%';
+  btn.textContent = '📷 ถ่ายภาพเพื่ออ่าน Barcode';
+  btn.onclick = function(){
+    /* capture frame จาก video แล้วแปลงเป็น blob */
+    var c = document.createElement('canvas');
+    c.width = video.videoWidth; c.height = video.videoHeight;
+    c.getContext('2d').drawImage(video, 0, 0);
+    c.toBlob(function(blob){
+      var file = new File([blob], 'frame.jpg', {type:'image/jpeg'});
+      var dt   = new DataTransfer();
+      dt.items.add(file);
+      var inp = document.getElementById('cam-input');
+      try{ inp.files = dt.files; } catch(e){}
+      onPhoto({files:[file]});
+    }, 'image/jpeg', 0.95);
+  };
+  /* ใส่ก่อนปุ่มปิดกล้อง */
+  var closeBtn = wrap.querySelector('button');
+  wrap.insertBefore(btn, closeBtn);
+}
+
+function stopCam(){
+  if(scanTimer){ clearInterval(scanTimer); scanTimer=null; }
+  if(camStream){
+    camStream.getTracks().forEach(function(t){ t.stop(); });
+    camStream = null;
+  }
+  var video = document.getElementById('cam-video');
+  video.srcObject = null;
+  document.getElementById('video-wrap').style.display = 'none';
+  document.getElementById('btn-scan-lbl').textContent = 'เปิดกล้องสแกน';
+}
+
+function startScanLoop(video){
+  /* รอให้ video พร้อมก่อน */
+  video.addEventListener('loadedmetadata', function(){
+    video.play();
+    /* scan ทุก 300ms */
+    scanTimer = setInterval(function(){ scanFrame(video); }, 300);
+  }, {once:true});
+}
+
+function scanFrame(video){
+  if(!video.videoWidth || !camStream) return;
+  var c   = document.createElement('canvas');
+  c.width = video.videoWidth; c.height = video.videoHeight;
+  c.getContext('2d').drawImage(video, 0, 0);
+
+  var doDetect = bdFormats
+    ? Promise.resolve(bdFormats)
+    : BarcodeDetector.getSupportedFormats();
+
+  doDetect.then(function(fmts){
+    bdFormats = fmts;
+    return new BarcodeDetector({formats:fmts}).detect(c);
+  }).then(function(results){
+    if(!results || !results.length) return;
+    var valid = results.filter(function(r){ return isGoodCode(r.rawValue); });
+    if(!valid.length) valid = results;
+    var p1d = ['ean_13','ean_8','upc_a','upc_e','itf','code_128','code_39','codabar'];
+    valid.sort(function(a,b){
+      var ia=p1d.indexOf(a.format), ib=p1d.indexOf(b.format);
+      if(ia<0)ia=999; if(ib<0)ib=999; return ia-ib;
+    });
+    var code = valid[0].rawValue.trim();
+    /* หยุด scan ชั่วคราว 1.5s เพื่อกัน scan ซ้ำ */
+    clearInterval(scanTimer); scanTimer=null;
+    addBarcode(code);
+    /* เปิด scan loop ต่อหลัง 1.5s */
+    setTimeout(function(){
+      if(camStream) scanTimer=setInterval(function(){ scanFrame(video); },300);
+    }, 1500);
+  }).catch(function(){});
+}
+
+/* fallback: photo input สำหรับ browser ที่ไม่มี BarcodeDetector */
+function onPhoto(input){
+  if(!input.files || !input.files[0]) return;
+  if(!('BarcodeDetector' in window)){
+    toast('Browser ไม่รองรับ BarcodeDetector','err'); return;
+  }
   showProc('กำลังอ่าน Barcode...');
   var img = new Image();
   var url = URL.createObjectURL(input.files[0]);
-
   img.onload = function(){
     var c = document.createElement('canvas');
-    c.width = img.naturalWidth; c.height = img.naturalHeight;
-    c.getContext('2d').drawImage(img, 0, 0);
+    c.width=img.naturalWidth; c.height=img.naturalHeight;
+    c.getContext('2d').drawImage(img,0,0);
     URL.revokeObjectURL(url);
-
-    /* ใช้ทุก format ที่ browser รองรับ — รวม ITF / Interleaved 2of5 */
     BarcodeDetector.getSupportedFormats().then(function(fmts){
-      var bd = new BarcodeDetector({formats: fmts});
-      return bd.detect(c);
+      return new BarcodeDetector({formats:fmts}).detect(c);
     }).then(function(results){
       hideProc();
-      if(!results || results.length === 0){
-        toast('ไม่พบ barcode — ลองถ่ายใหม่ให้ชัดขึ้น','err');
-        flashErr('ไม่พบ barcode ในรูป');
-        return;
-      }
-
-      /* กรองเฉพาะ barcode สินค้า (ตัด URL / QR text ออก) */
-      var valid = results.filter(function(r){ return isGoodCode(r.rawValue); });
-      if(!valid.length) valid = results;
-
-      /* เลือก 1D barcode ก่อน */
-      var p1d = ['ean_13','ean_8','upc_a','upc_e','itf','code_128','code_39','codabar'];
+      if(!results||!results.length){ toast('ไม่พบ barcode — ลองใหม่','err'); return; }
+      var valid=results.filter(function(r){ return isGoodCode(r.rawValue); });
+      if(!valid.length) valid=results;
+      var p1d=['ean_13','ean_8','upc_a','upc_e','itf','code_128','code_39','codabar'];
       valid.sort(function(a,b){
-        var ia = p1d.indexOf(a.format), ib = p1d.indexOf(b.format);
-        if(ia<0) ia=999; if(ib<0) ib=999;
-        return ia - ib;
+        var ia=p1d.indexOf(a.format),ib=p1d.indexOf(b.format);
+        if(ia<0)ia=999;if(ib<0)ib=999;return ia-ib;
       });
-
       addBarcode(valid[0].rawValue.trim());
-
-    }).catch(function(e){
-      hideProc();
-      toast('อ่านไม่ได้: '+e.message, 'err');
-    });
+    }).catch(function(e){ hideProc(); toast('อ่านไม่ได้: '+e.message,'err'); });
   };
-
-  img.onerror = function(){
-    hideProc(); URL.revokeObjectURL(url); toast('โหลดรูปไม่ได้','err');
-  };
-  img.src = url;
+  img.onerror=function(){ hideProc(); URL.revokeObjectURL(url); toast('โหลดรูปไม่ได้','err'); };
+  img.src=url;
 }
 
 function isGoodCode(v){
@@ -395,7 +523,8 @@ function plusAndCam(){
   var inp = document.getElementById('mbc');
   var v   = inp.value.replace(/\s/g,'');
   if(v.length >= 4){ addBarcode(v); inp.value=''; }
-  openCam();
+  /* ถ้ากล้องเปิดอยู่แล้ว ไม่ต้องเปิดซ้ำ */
+  if(!camStream) openCam();
 }
 
 function addManual(openAfter){
