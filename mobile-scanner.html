@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f172a">
+<title>Stock Scanner</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
+:root{
+  --bg:#0f172a; --sur:#1e293b; --sur2:#263347; --bdr:#334155;
+  --sky:#38bdf8; --vio:#818cf8; --grn:#34d399; --yel:#fbbf24; --red:#f87171;
+  --txt:#f1f5f9; --mut:#94a3b8;
+}
+*{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent }
+body{ font-family:'IBM Plex Sans Thai',sans-serif; background:var(--bg); color:var(--txt); min-height:100vh; overflow-x:hidden }
+
+/* ── HEADER ── */
+.hdr{ background:var(--sur); border-bottom:1px solid var(--bdr); padding:13px 16px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100 }
+.hdr-t{ font-size:15px; font-weight:700; color:var(--sky) }
+.hdr-s{ font-size:11px; color:var(--mut); font-family:'IBM Plex Mono',monospace; margin-top:2px }
+.bdg{ background:var(--sky); color:#0f172a; font-weight:700; font-size:17px; min-width:44px; height:44px; border-radius:22px; display:flex; align-items:center; justify-content:center; padding:0 10px; font-family:'IBM Plex Mono',monospace }
+
+/* ── SETUP PAGE ── */
+#pg-setup{ padding:28px 18px; display:flex; flex-direction:column; gap:18px; min-height:100vh; justify-content:center }
+.logo{ text-align:center }
+.logo .ico{ font-size:54px; display:block; margin-bottom:8px }
+.logo h1{ font-size:23px; font-weight:700; color:var(--sky) }
+.logo p{ font-size:13px; color:var(--mut); margin-top:4px }
+.fg{ display:flex; flex-direction:column; gap:7px }
+.fl{ font-size:12px; font-weight:700; color:var(--mut); text-transform:uppercase; letter-spacing:.6px }
+.fi,.fs{ background:var(--sur); border:1.5px solid var(--bdr); color:var(--txt); font-family:'IBM Plex Sans Thai',sans-serif; font-size:16px; padding:13px 14px; border-radius:10px; width:100%; outline:none; -webkit-appearance:none; appearance:none; transition:border-color .2s }
+.fi:focus,.fs:focus{ border-color:var(--sky) }
+.fs option{ background:#1e293b; color:var(--txt) }
+.area-row{ display:flex; gap:10px }
+.area-row .fs{ flex:1 }
+.tag-col{ display:flex; flex-direction:column; gap:5px; width:110px; flex-shrink:0 }
+.tag-col .fi{ font-family:'IBM Plex Mono',monospace; font-size:22px; text-align:center; letter-spacing:4px; padding:13px 6px }
+.tag-col .sm{ font-size:11px; color:var(--mut); text-align:center }
+.fhint{ font-size:11px; color:var(--mut); padding-left:2px; margin-top:-3px }
+.btn-go{ background:var(--sky); color:#0f172a; font-family:'IBM Plex Sans Thai',sans-serif; font-weight:700; font-size:16px; padding:15px; border-radius:12px; border:none; width:100%; cursor:pointer; margin-top:4px }
+.btn-go:active{ opacity:.85 }
+
+/* ── MAIN PAGE ── */
+#pg-main{ display:none; padding-bottom:100px }
+.sec{ padding:14px 16px; display:flex; flex-direction:column; gap:12px }
+
+.loc-tag{ background:var(--sur2); border:1px solid var(--bdr); border-radius:10px; padding:10px 14px; display:flex; align-items:center; gap:8px; flex-wrap:wrap }
+.loc-chip{ background:rgba(56,189,248,.15); border:1px solid rgba(56,189,248,.35); color:var(--sky); font-weight:700; font-family:'IBM Plex Mono',monospace; font-size:13px; padding:4px 13px; border-radius:20px }
+.wkr{ margin-left:auto; color:var(--mut); font-size:12px }
+
+/* ── SCAN CARD ── */
+.scan-card{ background:var(--sur); border:2px solid var(--sky); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:12px }
+.scan-title{ font-size:12px; font-weight:700; color:var(--sky); text-align:center; text-transform:uppercase; letter-spacing:.5px }
+
+.btn-scan{ background:linear-gradient(135deg,#0284c7,#38bdf8); color:#0f172a; font-family:'IBM Plex Sans Thai',sans-serif; font-weight:700; font-size:18px; padding:20px; border-radius:12px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; width:100%; box-shadow:0 4px 20px rgba(56,189,248,.3) }
+.btn-scan:active{ opacity:.85; transform:scale(.98) }
+.btn-scan .ico{ font-size:28px }
+
+.man-row{ display:flex; gap:8px }
+.mbig{ flex:1; background:var(--bg); border:2px solid var(--bdr); color:var(--txt); font-family:'IBM Plex Mono',monospace; font-size:18px; padding:12px 10px; border-radius:10px; outline:none; text-align:center; letter-spacing:2px; min-width:0 }
+.mbig:focus{ border-color:var(--vio) }
+.mbig::placeholder{ font-size:13px; letter-spacing:0; color:var(--mut) }
+.btn-plus{ background:var(--vio); color:#fff; font-size:26px; font-weight:700; width:54px; flex-shrink:0; border-radius:10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center }
+.btn-plus:active{ opacity:.85 }
+.man-hint{ font-size:11px; color:var(--mut); text-align:center }
+
+#cam-input{ display:none }
+
+/* ── LAST SCAN ── */
+.lsb{ background:var(--sur); border:1.5px solid var(--bdr); border-radius:12px; padding:14px; display:flex; align-items:center; gap:12px; min-height:66px; transition:border-color .25s,background .25s }
+.lsb.ok { border-color:var(--grn); background:rgba(52,211,153,.07) }
+.lsb.dup{ border-color:var(--yel); background:rgba(251,191,36,.07) }
+.lsb.err{ border-color:var(--red); background:rgba(248,113,113,.07) }
+.ls-ico{ font-size:26px; min-width:34px; text-align:center }
+.ls-inf{ flex:1; min-width:0 }
+.ls-bc{ font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:700; letter-spacing:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.ls-mt{ font-size:12px; color:var(--mut); margin-top:3px }
+.ls-qt{ font-size:13px; font-weight:700; font-family:'IBM Plex Mono',monospace; color:var(--yel); flex-shrink:0 }
+
+/* ── LOG TABLE ── */
+.log-sec{ padding:0 16px }
+.log-hdr{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px }
+.log-ttl{ font-size:12px; font-weight:700; color:var(--mut); text-transform:uppercase; letter-spacing:.6px }
+.btn-clr{ background:none; border:1px solid var(--bdr); color:var(--red); font-size:12px; padding:4px 10px; border-radius:6px; cursor:pointer; font-family:'IBM Plex Sans Thai',sans-serif }
+.tw{ overflow-x:auto; border-radius:10px; border:1px solid var(--bdr) }
+table{ width:100%; border-collapse:collapse; font-size:13px }
+th{ background:var(--sur2); color:var(--mut); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; padding:10px; text-align:left; border-bottom:1px solid var(--bdr) }
+td{ padding:9px 10px; border-bottom:1px solid rgba(51,65,85,.5); vertical-align:middle }
+tr:last-child td{ border-bottom:none }
+.tbc{ font-family:'IBM Plex Mono',monospace; font-size:12px }
+.ttm{ color:var(--mut); font-size:11px; font-family:'IBM Plex Mono',monospace }
+.dup-badge{ background:rgba(251,191,36,.15); color:var(--yel); font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; margin-left:4px }
+.bdl{ background:none; border:none; color:var(--red); cursor:pointer; font-size:17px; padding:0 2px }
+.emp{ text-align:center; padding:28px 16px; color:var(--mut); font-size:13px }
+.ei{ font-size:32px; margin-bottom:6px }
+
+/* ── EXPORT BAR ── */
+.expbar{ position:fixed; bottom:0; left:0; right:0; background:var(--sur); border-top:1px solid var(--bdr); padding:11px 14px; display:flex; gap:8px; align-items:center; z-index:200 }
+.exps{ flex:1 }
+.sn{ font-size:21px; font-weight:700; font-family:'IBM Plex Mono',monospace; color:var(--sky); line-height:1 }
+.sl{ font-size:11px; color:var(--mut) }
+.btn-save{ background:var(--grn); color:#0f172a; font-weight:700; font-size:13px; padding:12px 16px; border-radius:10px; border:none; cursor:pointer; white-space:nowrap }
+.btn-save:active{ opacity:.85 }
+.btn-line{ background:#06c755; color:#fff; font-weight:700; font-size:13px; padding:12px 16px; border-radius:10px; border:none; cursor:pointer; white-space:nowrap; display:flex; align-items:center; gap:5px }
+.btn-line:active{ opacity:.85 }
+
+/* ── PROC OVERLAY ── */
+#proc-ov{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.84); z-index:500; align-items:center; justify-content:center; flex-direction:column; gap:14px }
+#proc-ov.show{ display:flex }
+.spin{ width:50px; height:50px; border:4px solid var(--bdr); border-top-color:var(--sky); border-radius:50%; animation:sp .7s linear infinite }
+@keyframes sp{ to{ transform:rotate(360deg) } }
+.ptxt{ font-size:15px; font-weight:600; color:var(--txt) }
+
+/* ── TOAST ── */
+.tst{ position:fixed; bottom:108px; left:50%; transform:translateX(-50%) translateY(16px); background:var(--sur2); border:1px solid var(--bdr); border-radius:10px; padding:11px 20px; font-size:14px; font-weight:600; opacity:0; transition:all .25s; z-index:999; white-space:nowrap; pointer-events:none; max-width:92vw; overflow:hidden; text-overflow:ellipsis }
+.tst.show{ opacity:1; transform:translateX(-50%) translateY(0) }
+.tst.ok { border-color:var(--grn); color:var(--grn) }
+.tst.dup{ border-color:var(--yel); color:var(--yel) }
+.tst.err{ border-color:var(--red); color:var(--red) }
+</style>
+</head>
+<body>
+
+<!-- ════ SETUP ════ -->
+<div id="pg-setup">
+  <div class="logo">
+    <span class="ico">📦</span>
+    <h1>Stock Scanner</h1>
+    <p>กรอกข้อมูลก่อนเริ่มนับสต็อก</p>
+  </div>
+
+  <div class="fg">
+    <div class="fl">ชื่อพนักงาน</div>
+    <input class="fi" id="iname" type="text" placeholder="ชื่อ-นามสกุล" autocomplete="off"/>
+  </div>
+
+  <div class="fg">
+    <div class="fl">พื้นที่ (Area) และ Tag No</div>
+    <div class="area-row">
+      <select class="fs" id="iarea">
+        <option value="">-- Area --</option>
+        <option>A</option><option>B</option><option>C</option><option>D</option>
+        <option>E</option><option>F</option><option>G</option><option>H</option>
+      </select>
+      <div class="tag-col">
+        <input class="fi" id="itag" type="text" inputmode="numeric" maxlength="3"
+               placeholder="001" autocomplete="off"
+               oninput="this.value=this.value.replace(/\D/g,'')"/>
+        <span class="sm">Tag No (3 หลัก)</span>
+      </div>
+    </div>
+    <div class="fhint">เช่น Area B + 025 = Area-B / Tag-025</div>
+  </div>
+
+  <div class="fg">
+    <div class="fl">วันที่นับ</div>
+    <input class="fi" id="idate" type="date"/>
+  </div>
+
+  <button class="btn-go" onclick="startSession()">เริ่มนับสต็อก</button>
+</div>
+
+<!-- ════ MAIN ════ -->
+<div id="pg-main">
+  <div class="hdr">
+    <div>
+      <div class="hdr-t">📦 Stock Scanner</div>
+      <div class="hdr-s" id="hdr-s">—</div>
+    </div>
+    <div class="bdg" id="bdg">0</div>
+  </div>
+
+  <div class="sec">
+
+    <div class="loc-tag">
+      <span>🏭</span>
+      <span class="loc-chip" id="loc-chip">—</span>
+      <span class="wkr" id="wkr">—</span>
+    </div>
+
+    <div class="scan-card">
+      <div class="scan-title">สแกน Barcode — EAN / Code128 / ITF / I2of5</div>
+
+      <button class="btn-scan" onclick="openCam()">
+        <span class="ico">📸</span>
+        <span>เปิดกล้องสแกน</span>
+      </button>
+
+      <div class="man-row">
+        <input class="mbig" id="mbc" type="text" inputmode="numeric"
+               maxlength="20" placeholder="พิมพ์ barcode เอง..." autocomplete="off"/>
+        <button class="btn-plus" onclick="plusAndCam()">+</button>
+      </div>
+      <div class="man-hint">Enter = เพิ่มอย่างเดียว &nbsp;·&nbsp; + = เพิ่มแล้วเปิดกล้องต่อ</div>
+    </div>
+
+    <!-- hidden file input — capture camera photo -->
+    <input type="file" id="cam-input" accept="image/*" capture="environment"
+           onchange="onPhoto(this)"/>
+
+    <!-- last scan result -->
+    <div class="lsb" id="lsb">
+      <div class="ls-ico" id="ls-ico">🔲</div>
+      <div class="ls-inf">
+        <div class="ls-bc" id="ls-bc">รอสแกน...</div>
+        <div class="ls-mt" id="ls-mt">กดปุ่มเปิดกล้อง หรือพิมพ์ barcode</div>
+      </div>
+      <div class="ls-qt" id="ls-qt"></div>
+    </div>
+
+  </div><!-- /sec -->
+
+  <div class="log-sec">
+    <div class="log-hdr">
+      <div class="log-ttl">รายการที่สแกนแล้ว</div>
+      <button class="btn-clr" onclick="clearAll()">ล้างทั้งหมด</button>
+    </div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>#</th><th>Barcode</th><th>เวลา</th><th></th></tr></thead>
+        <tbody id="tbody">
+          <tr><td colspan="4"><div class="emp"><div class="ei">📋</div>ยังไม่มีรายการ</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="expbar">
+    <div class="exps">
+      <div class="sn" id="sn">0</div>
+      <div class="sl">รายการ / <span id="sq">0</span> ชิ้น</div>
+    </div>
+    <button class="btn-save" onclick="doSave()">💾 บันทึก</button>
+    <button class="btn-line" onclick="doLine()"><span style="font-size:16px">💚</span> LINE</button>
+  </div>
+</div>
+
+<div id="proc-ov">
+  <div class="spin"></div>
+  <div class="ptxt" id="ptxt">กำลังอ่าน Barcode...</div>
+</div>
+<div class="tst" id="tst"></div>
+
+<script>
+/* ══════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════ */
+var rows = [];   // [ {barcode, scanTime} ]  — แต่ละ scan = 1 row แยกกัน
+var W='', AR='', TG='', DT='', LOC='';
+
+/* ══════════════════════════════════════════════
+   BEEP  (Web Audio API — ไม่ต้องโหลดไฟล์เสียง)
+══════════════════════════════════════════════ */
+var _ac = null;
+function ac(){
+  if(!_ac) try{ _ac = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){}
+  return _ac;
+}
+function beep(freq, dur, vol, shape){
+  var c = ac(); if(!c) return;
+  try{
+    var o = c.createOscillator(), g = c.createGain();
+    o.connect(g); g.connect(c.destination);
+    o.type = shape||'sine'; o.frequency.value = freq||1200;
+    g.gain.setValueAtTime(vol||0.35, c.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + (dur||0.1));
+    o.start(c.currentTime); o.stop(c.currentTime + (dur||0.12));
+  }catch(e){}
+}
+function beepOK(){  beep(1450, 0.09, 0.35, 'sine'); }
+function beepDup(){ beep(700, 0.14, 0.35, 'sine'); setTimeout(function(){ beep(700,0.14,0.3,'sine'); }, 190); }
+
+/* unlock AudioContext on first touch (required by iOS + some Android) */
+document.addEventListener('touchstart', function u(){
+  var c=ac(); if(c && c.state==='suspended') c.resume();
+  document.removeEventListener('touchstart', u);
+}, {once:true, passive:true});
+
+/* ══════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════ */
+document.getElementById('idate').value = new Date().toISOString().slice(0,10);
+
+document.getElementById('itag').addEventListener('blur', function(){
+  if(this.value) this.value = this.value.padStart(3,'0');
+});
+document.getElementById('mbc').addEventListener('keydown', function(e){
+  if(e.key === 'Enter') addManual(false);
+});
+
+/* ══════════════════════════════════════════════
+   SESSION START
+══════════════════════════════════════════════ */
+function startSession(){
+  var name = document.getElementById('iname').value.trim();
+  var area = document.getElementById('iarea').value;
+  var tag  = document.getElementById('itag').value.trim();
+  var date = document.getElementById('idate').value;
+  if(!name){ toast('กรุณากรอกชื่อ','dup'); return; }
+  if(!area){ toast('กรุณาเลือก Area','dup'); return; }
+  if(!tag) { toast('กรุณากรอก Tag No','dup'); return; }
+
+  W=name; AR=area; TG=tag.padStart(3,'0'); DT=date;
+  LOC = 'Area-'+AR+' / Tag-'+TG;
+
+  document.getElementById('pg-setup').style.display = 'none';
+  document.getElementById('pg-main').style.display  = 'block';
+  document.getElementById('hdr-s').textContent   = LOC+' · '+DT;
+  document.getElementById('loc-chip').textContent = LOC;
+  document.getElementById('wkr').textContent      = W;
+}
+
+/* ══════════════════════════════════════════════
+   CAMERA  — ถ่ายรูป → BarcodeDetector
+   ทำงานจาก file:// ได้  (ไม่ต้องการ HTTPS)
+   รองรับ: Android Chrome 83+
+══════════════════════════════════════════════ */
+function openCam(){
+  document.getElementById('cam-input').value = '';
+  document.getElementById('cam-input').click();
+}
+
+function onPhoto(input){
+  if(!input.files || !input.files[0]) return;
+
+  if(!('BarcodeDetector' in window)){
+    toast('Browser ไม่รองรับ BarcodeDetector — กรุณาพิมพ์เอง','err');
+    return;
+  }
+
+  showProc('กำลังอ่าน Barcode...');
+  var img = new Image();
+  var url = URL.createObjectURL(input.files[0]);
+
+  img.onload = function(){
+    var c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    c.getContext('2d').drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+
+    /* ใช้ทุก format ที่ browser รองรับ — รวม ITF / Interleaved 2of5 */
+    BarcodeDetector.getSupportedFormats().then(function(fmts){
+      var bd = new BarcodeDetector({formats: fmts});
+      return bd.detect(c);
+    }).then(function(results){
+      hideProc();
+      if(!results || results.length === 0){
+        toast('ไม่พบ barcode — ลองถ่ายใหม่ให้ชัดขึ้น','err');
+        flashErr('ไม่พบ barcode ในรูป');
+        return;
+      }
+
+      /* กรองเฉพาะ barcode สินค้า (ตัด URL / QR text ออก) */
+      var valid = results.filter(function(r){ return isGoodCode(r.rawValue); });
+      if(!valid.length) valid = results;
+
+      /* เลือก 1D barcode ก่อน */
+      var p1d = ['ean_13','ean_8','upc_a','upc_e','itf','code_128','code_39','codabar'];
+      valid.sort(function(a,b){
+        var ia = p1d.indexOf(a.format), ib = p1d.indexOf(b.format);
+        if(ia<0) ia=999; if(ib<0) ib=999;
+        return ia - ib;
+      });
+
+      addBarcode(valid[0].rawValue.trim());
+
+    }).catch(function(e){
+      hideProc();
+      toast('อ่านไม่ได้: '+e.message, 'err');
+    });
+  };
+
+  img.onerror = function(){
+    hideProc(); URL.revokeObjectURL(url); toast('โหลดรูปไม่ได้','err');
+  };
+  img.src = url;
+}
+
+function isGoodCode(v){
+  if(!v || v.length < 4) return false;
+  if(/^https?:\/\//i.test(v)) return false;
+  if(/\s/.test(v)) return false;
+  return (v.match(/\d/g)||[]).length / v.length >= 0.4;
+}
+
+function showProc(m){ document.getElementById('ptxt').textContent=m; document.getElementById('proc-ov').className='show'; }
+function hideProc(){  document.getElementById('proc-ov').className=''; }
+
+/* ══════════════════════════════════════════════
+   ADD BARCODE
+══════════════════════════════════════════════ */
+function plusAndCam(){
+  var inp = document.getElementById('mbc');
+  var v   = inp.value.replace(/\s/g,'');
+  if(v.length >= 4){ addBarcode(v); inp.value=''; }
+  openCam();
+}
+
+function addManual(openAfter){
+  var inp  = document.getElementById('mbc');
+  var code = inp.value.replace(/\s/g,'');
+  if(code.length < 4){ toast('Barcode สั้นเกินไป','dup'); return; }
+  addBarcode(code); inp.value=''; inp.focus();
+  if(openAfter) openCam();
+}
+
+function addBarcode(code){
+  if(!code) return;
+  var t    = new Date().toTimeString().slice(0,8);
+  var isDup = rows.some(function(r){ return r.barcode === code; });
+
+  /* แต่ละ scan = row ใหม่เสมอ ไม่รวม qty */
+  rows.push({ barcode: code, scanTime: t });
+
+  /* flash last scan UI */
+  var box = document.getElementById('lsb');
+  box.className = 'lsb '+(isDup ? 'dup' : 'ok');
+  document.getElementById('ls-ico').textContent = isDup ? '⚠️' : '✅';
+  document.getElementById('ls-bc').textContent  = code;
+  var cnt = rows.filter(function(r){ return r.barcode===code; }).length;
+  document.getElementById('ls-mt').textContent  = isDup
+    ? ('ซ้ำ! ครั้งที่ '+cnt+' · '+t)
+    : ('สแกนแล้ว · '+t);
+  document.getElementById('ls-qt').textContent  = isDup ? ('×'+cnt) : '';
+  setTimeout(function(){ box.className='lsb'; }, 2000);
+
+  /* haptic + beep */
+  if(navigator.vibrate) navigator.vibrate(isDup ? [40,25,40] : 60);
+  if(isDup) beepDup(); else beepOK();
+
+  toast(isDup ? ('ซ้ำ: '+code) : ('OK: '+code), isDup ? 'dup' : 'ok');
+  renderTable();
+  renderStats();
+}
+
+function flashErr(msg){
+  var b = document.getElementById('lsb'); b.className='lsb err';
+  document.getElementById('ls-ico').textContent = '❌';
+  document.getElementById('ls-bc').textContent  = msg;
+  document.getElementById('ls-mt').textContent  = '';
+  document.getElementById('ls-qt').textContent  = '';
+  setTimeout(function(){ b.className='lsb'; }, 2000);
+}
+
+/* ══════════════════════════════════════════════
+   TABLE / STATS
+══════════════════════════════════════════════ */
+function renderTable(){
+  var tb = document.getElementById('tbody');
+  if(!rows.length){
+    tb.innerHTML = '<tr><td colspan="4"><div class="emp"><div class="ei">📋</div>ยังไม่มีรายการ</div></td></tr>';
+    return;
+  }
+  var cm = {};
+  rows.forEach(function(r){ cm[r.barcode] = (cm[r.barcode]||0)+1; });
+  tb.innerHTML = rows.slice().reverse().map(function(r, i){
+    var seq = rows.length - i;
+    var dup = cm[r.barcode] > 1;
+    return '<tr>'
+      +'<td style="color:var(--mut);font-size:11px">'+seq+'</td>'
+      +'<td class="tbc">'+r.barcode+(dup?'<span class="dup-badge">ซ้ำ</span>':'')+'</td>'
+      +'<td class="ttm">'+r.scanTime+'</td>'
+      +'<td><button class="bdl" onclick="delRow('+(rows.length-1-i)+')">🗑</button></td>'
+      +'</tr>';
+  }).join('');
+}
+
+function renderStats(){
+  var n = rows.length;
+  document.getElementById('bdg').textContent = n;
+  document.getElementById('sn').textContent  = n;
+  document.getElementById('sq').textContent  = n;
+}
+
+function delRow(i){
+  if(!rows[i]) return;
+  if(!confirm('ลบ '+rows[i].barcode+' ?')) return;
+  rows.splice(i, 1); renderTable(); renderStats();
+  toast('ลบแล้ว','err');
+}
+
+function clearAll(){
+  if(!confirm('ล้างรายการทั้งหมด?')) return;
+  rows = []; renderTable(); renderStats();
+  toast('ล้างรายการแล้ว','err');
+}
+
+/* ══════════════════════════════════════════════
+   CSV BUILDER
+   barcode ใช้ ="VALUE"  บังคับ Excel อ่านเป็น text
+   ไม่มี format column
+══════════════════════════════════════════════ */
+function buildCSV(){
+  var hdr = ['worker','area','tag_no','location','date','barcode','scan_time'];
+  var lines = [ hdr.map(function(h){ return '"'+h+'"'; }).join(',') ];
+  rows.forEach(function(r){
+    lines.push([
+      '"'+W+'"', '"'+AR+'"', '"'+TG+'"', '"'+LOC+'"', '"'+DT+'"',
+      '="'+r.barcode+'"',
+      '"'+r.scanTime+'"'
+    ].join(','));
+  });
+  return lines.join('\n');
+}
+
+/* ══════════════════════════════════════════════
+   EXPORT — บันทึก CSV
+══════════════════════════════════════════════ */
+function doSave(){
+  if(!rows.length){ toast('ยังไม่มีข้อมูล','dup'); return; }
+  var fname = 'scan_Area'+AR+'_Tag'+TG+'_'+DT+'.csv';
+  var blob  = new Blob(['\uFEFF'+buildCSV()], {type:'text/csv;charset=utf-8'});
+  var url   = URL.createObjectURL(blob);
+  var a     = document.createElement('a');
+  a.href = url; a.download = fname; a.click();
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+  toast('Export '+rows.length+' รายการแล้ว','ok');
+}
+
+/* ══════════════════════════════════════════════
+   LINE SHARE
+   HTTPS (GitHub Pages) → Web Share File API → ส่งได้เลย
+   file://              → download อย่างเดียว
+══════════════════════════════════════════════ */
+function doLine(){
+  if(!rows.length){ toast('ยังไม่มีข้อมูล','dup'); return; }
+
+  var fname = 'scan_Area'+AR+'_Tag'+TG+'_'+DT+'.csv';
+  var csv   = '\uFEFF' + buildCSV();
+  var blob  = new Blob([csv], {type:'application/octet-stream'});
+  var file  = new File([blob], fname, {type:'application/octet-stream', lastModified:Date.now()});
+
+  var isSecure = (location.protocol === 'https:' || location.hostname === 'localhost');
+
+  if(isSecure && navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+    /* HTTPS — ส่งไฟล์ผ่าน LINE ได้ทันที */
+    navigator.share({files:[file], title:'Stock Scan '+LOC+' '+DT})
+      .then(function(){ toast('ส่งไฟล์สำเร็จ','ok'); })
+      .catch(function(e){
+        if(e.name !== 'AbortError'){
+          downloadFile(csv, fname);
+          toast('ส่งไม่ได้ — Download แล้ว','dup');
+        }
+      });
+  } else {
+    /* file:// — download อย่างเดียว */
+    downloadFile(csv, fname);
+    if(!isSecure){
+      toast('Download แล้ว — เปิดผ่าน GitHub Pages เพื่อส่ง LINE auto','dup');
+    } else {
+      toast('Download '+rows.length+' รายการแล้ว','ok');
+    }
+  }
+}
+
+function downloadFile(csv, fname){
+  try{
+    var blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href = url; a.download = fname;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1500);
+  }catch(e){
+    var b64 = btoa(unescape(encodeURIComponent(csv)));
+    var a   = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8;base64,'+b64; a.download = fname;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }
+}
+
+/* ══════════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════════ */
+function toast(msg, type){
+  var t = document.getElementById('tst');
+  t.textContent = msg;
+  t.className   = 'tst '+(type||'ok')+' show';
+  clearTimeout(t._x);
+  t._x = setTimeout(function(){ t.className='tst'; }, 2800);
+}
+</script>
+</body>
+</html>
